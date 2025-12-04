@@ -85,7 +85,11 @@ fn engrave(number: &ComplexNumber) -> bool {
         real: 0,
         imaginary: 0,
     };
-    for _ in 1..=100 {
+    for i in 1..=100 {
+        if i > 2 && start == *number {
+            return true;
+        }
+
         start = start.multiply(&start).divide(&divisor).add(number);
 
         if diverges(&start) {
