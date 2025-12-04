@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use crate::solutions::solution;
 
+#[derive(PartialEq, Eq)]
 struct ComplexNumber {
     real: i64,
     imaginary: i64,
@@ -14,10 +15,32 @@ impl solution::Solver for Day2Solver {
     fn solve(&self, input: solution::Input) -> solution::Solution {
         solution::Solution {
             part1: part1(&input.part1),
-            part2: "0".into(),
-            part3: "0".into(),
+            part2: part2(&input.part2),
+            part3: part3(&input.part3),
         }
     }
+}
+
+fn part3(input: &str) -> String {
+    let a = ComplexNumber::from_str(input).unwrap();
+    let step = 1;
+
+    grid(&a, step)
+        .iter()
+        .filter(|c| engrave(c))
+        .count()
+        .to_string()
+}
+
+fn part2(input: &str) -> String {
+    let a = ComplexNumber::from_str(input).unwrap();
+    let step = 10;
+
+    grid(&a, step)
+        .iter()
+        .filter(|c| engrave(c))
+        .count()
+        .to_string()
 }
 
 fn part1(input: &str) -> String {
@@ -37,6 +60,43 @@ fn part1(input: &str) -> String {
     );
 
     format!("[{},{}]", result.real, result.imaginary)
+}
+
+fn grid(number: &ComplexNumber, step: usize) -> Vec<ComplexNumber> {
+    let mut v = Vec::new();
+
+    for re in (number.real..=(number.real + 1000)).step_by(step) {
+        for im in (number.imaginary..=(number.imaginary + 1000)).step_by(step) {
+            v.push(ComplexNumber {
+                real: re,
+                imaginary: im,
+            });
+        }
+    }
+    v
+}
+
+fn engrave(number: &ComplexNumber) -> bool {
+    let divisor = ComplexNumber {
+        real: 100_000,
+        imaginary: 100_000,
+    };
+    let mut start = ComplexNumber {
+        real: 0,
+        imaginary: 0,
+    };
+    for _ in 1..=100 {
+        start = start.multiply(&start).divide(&divisor).add(number);
+
+        if diverges(&start) {
+            return false;
+        }
+    }
+    true
+}
+
+fn diverges(number: &ComplexNumber) -> bool {
+    number.imaginary.abs() >= 1_000_000 || number.real.abs() >= 1_000_000
 }
 
 impl ComplexNumber {
@@ -71,7 +131,7 @@ impl FromStr for ComplexNumber {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let r = regex::Regex::new(r"\[(?P<real>\d+),(?P<imaginary>\d+)\]").unwrap();
+        let r = regex::Regex::new(r"\[(?P<real>-?\d+),(?P<imaginary>-?\d+)\]").unwrap();
 
         let caps = r.captures(s).unwrap();
         Ok(Self {
@@ -88,17 +148,15 @@ mod tests {
 
     #[test]
     fn test_solve() {
-        let p1 = "A=[25,9]";
-
         let input = solution::Input {
-            part1: p1.into(),
-            part2: "".into(),
-            part3: "".into(),
+            part1: "A=[25,9]".into(),
+            part2: "A=[35300,-64910]".into(),
+            part3: "A=[35300,-64910]".into(),
         };
 
         let solution = Day2Solver.solve(input);
         assert_eq!(solution.part1, "[357,862]");
-        assert_eq!(solution.part2, "0");
-        assert_eq!(solution.part3, "0");
+        assert_eq!(solution.part2, "4076");
+        assert_eq!(solution.part3, "406954");
     }
 }

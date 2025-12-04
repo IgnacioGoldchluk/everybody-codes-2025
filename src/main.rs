@@ -1,7 +1,7 @@
 use argh::FromArgs;
 use solutions::solution::Solver;
 use std::fs;
-
+use std::time::Instant;
 mod solutions;
 
 #[derive(FromArgs)]
@@ -22,9 +22,10 @@ fn main() {
         2 => Box::new(solutions::day2::Day2Solver {}),
         _ => todo!("Unreachable"),
     };
-
+    let now = Instant::now();
     let solution = solver.solve(input);
     println!("{}", solution);
+    println!("Elapsed: {:.2?}", now.elapsed());
 }
 
 fn read_input(day: u8) -> solutions::solution::Input {
