@@ -23,6 +23,7 @@ fn main() {
         3 => Box::new(solutions::day3::Day3Solver {}),
         4 => Box::new(solutions::day4::Day4Solver {}),
         5 => Box::new(solutions::day5::Day5Solver {}),
+        6 => Box::new(solutions::day6::Day6Solver {}),
         _ => todo!("Unreachable"),
     };
     let now = Instant::now();
@@ -32,10 +33,11 @@ fn main() {
 }
 
 fn read_input(day: u8) -> solutions::solution::Input {
-    let file_path = format!("inputs/day{}", day);
+    let file_path = format!("inputs/{}/", day);
+
     solutions::solution::Input {
-        part1: fs::read_to_string(file_path.to_string() + "_1").unwrap(),
-        part2: fs::read_to_string(file_path.to_string() + "_2").unwrap(),
-        part3: fs::read_to_string(file_path.to_string() + "_3").unwrap(),
+        part1: fs::read_to_string(file_path.to_string() + "/1").unwrap(),
+        part2: fs::read_to_string(file_path.to_string() + "/2").unwrap(),
+        part3: fs::read_to_string(file_path.to_string() + "/3").unwrap(),
     }
 }
