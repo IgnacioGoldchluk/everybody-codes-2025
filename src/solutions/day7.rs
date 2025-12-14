@@ -11,7 +11,7 @@ impl solution::Solver for Day7Solver {
         solution::Solution {
             part1: part1(&input.part1),
             part2: part2(&input.part2).to_string(),
-            part3: "".into(),
+            part3: part3(&input.part3).to_string(),
         }
     }
 }
@@ -19,9 +19,7 @@ impl solution::Solver for Day7Solver {
 type Rules = HashMap<char, HashSet<char>>;
 
 fn part1(input: &str) -> String {
-    let mut i = input.split("\n\n");
-    let names: Vec<&str> = i.next().unwrap().split(",").collect();
-    let rules = parse_rules(i.next().unwrap());
+    let (names, rules) = parse(input);
 
     names
         .iter()
@@ -31,9 +29,7 @@ fn part1(input: &str) -> String {
 }
 
 fn part2(input: &str) -> u64 {
-    let mut i = input.split("\n\n");
-    let names: Vec<&str> = i.next().unwrap().split(",").collect();
-    let rules = parse_rules(i.next().unwrap());
+    let (names, rules) = parse(input);
 
     names
         .iter()
@@ -41,6 +37,49 @@ fn part2(input: &str) -> u64 {
         .filter(|(_i, name)| matches_rules(name, &rules))
         .map(|(idx, _name)| (idx + 1) as u64)
         .sum()
+}
+
+fn part3(input: &str) -> u64 {
+    let (prefixes, rules) = parse(input);
+
+    remove_substrings(&prefixes)
+        .iter()
+        .filter(|name| matches_rules(name, &rules))
+        .map(|name| combinations(name, &rules))
+        .sum()
+}
+
+fn combinations(name: &str, rules: &Rules) -> u64 {
+    // If 7 <= length <= 10 -> 1 + sum (because already valid)
+    // If
+    let length = name.len();
+    if length == 11 {
+        return 1;
+    }
+
+    let last_char = name.chars().last().unwrap();
+    let default = HashSet::new();
+    let nexts = rules.get(&last_char).unwrap_or(&default);
+    let to_add = if (7..=10).contains(&length) { 1 } else { 0 };
+
+    let sum: u64 = nexts
+        .iter()
+        .map(|c| combinations(&(name.to_string() + &c.to_string()), rules))
+        .sum();
+
+    sum + to_add
+}
+
+fn remove_substrings(names: &[&str]) -> Vec<String> {
+    names
+        .iter()
+        .filter(|candidate| {
+            !names
+                .iter()
+                .any(|other| candidate.starts_with(other) && candidate.to_string() != *other)
+        })
+        .map(|s| s.to_string())
+        .collect()
 }
 
 fn matches_rules(name: &str, rules: &Rules) -> bool {
@@ -51,6 +90,14 @@ fn matches_rules(name: &str, rules: &Rules) -> bool {
     }
 
     true
+}
+
+fn parse(input: &str) -> (Vec<&str>, Rules) {
+    let mut i = input.split("\n\n");
+    let names: Vec<&str> = i.next().unwrap().split(",").collect();
+    let rules = parse_rules(i.next().unwrap());
+
+    (names, rules)
 }
 
 fn parse_rules(rules: &str) -> Rules {
@@ -112,13 +159,38 @@ n > v
 x > z
 T > i"#;
 
+        let input_3 = r#"Khara,Xaryt,Noxer,Kharax
+
+r > v,e,a,g,y
+a > e,v,x,r,g
+e > r,x,v,t
+h > a,e,v
+g > r,y
+y > p,t
+i > v,r
+K > h
+v > e
+B > r
+t > h
+N > e
+p > h
+H > e
+l > t
+z > e
+X > a
+n > v
+x > z
+T > i"#;
+
         let input = solution::Input {
             part1: input_1.into(),
             part2: input_2.into(),
-            part3: "".into(),
+            part3: input_3.into(),
         };
 
         let solution = Day7Solver.solve(input);
         assert_eq!(solution.part1, "Oroneth");
+        assert_eq!(solution.part2, "23");
+        assert_eq!(solution.part3, "1154");
     }
 }
