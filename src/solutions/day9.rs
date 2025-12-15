@@ -1,5 +1,5 @@
 use crate::solutions::solution;
-use std::collections::{HashMap, HashSet};
+use disjoint::DisjointSet;
 
 pub struct Day9Solver;
 
@@ -46,7 +46,7 @@ fn part2(input: &str) -> u64 {
 
 fn part3(input: &str) -> u64 {
     let dnas = parse(input);
-    let mut families: HashMap<usize, HashSet<usize>> = HashMap::new();
+    let mut families = DisjointSet::with_len(dnas.len());
 
     for (ic, child) in dnas.iter().enumerate() {
         for (ip1, p1) in dnas.iter().enumerate() {
@@ -55,13 +55,19 @@ fn part3(input: &str) -> u64 {
                     continue;
                 }
                 if is_child(child, p1, p2) {
-                    todo!()
+                    families.join(ic, ip1);
+                    families.join(ic, ip2);
                 }
             }
         }
     }
 
-    123
+    families
+        .sets()
+        .iter()
+        .max_by(|f1, f2| f1.len().cmp(&f2.len()))
+        .map(|values| values.iter().map(|x| x + 1).sum::<usize>())
+        .unwrap() as u64
 }
 
 fn is_child(child: &Dna, p1: &Dna, p2: &Dna) -> bool {
