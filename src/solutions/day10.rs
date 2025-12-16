@@ -7,6 +7,7 @@ enum Element {
     Dragon,
     Sheep,
     Empty,
+    Safe,
 }
 
 type Point = (i32, i32);
@@ -25,19 +26,33 @@ impl solution::Solver for Day10Solver {
 
 fn part1(input: &str) -> u64 {
     let grid = parse(input);
-    valid_positions(&find_dragon(&grid), moves())
+
+    let unique_positions: HashSet<Point> = valid_positions(&find_dragon(&grid), moves())
+        .iter()
+        .map(|(_move_num, pos)| *pos)
+        .collect();
+
+    unique_positions
         .iter()
         .filter(|pos| matches!(grid.get(pos), Some(Element::Sheep)))
         .count() as u64
 }
 
-fn valid_positions(start: &Point, total_moves: u8) -> HashSet<Point> {
+fn valid_positions(start: &Point, total_moves: u8) -> HashSet<(u8, Point)> {
     let mut moves_left = total_moves;
-    let mut to_visit = vec![*start];
+    let mut to_visit = vec![(0, *start)];
     let mut positions = HashSet::new();
 
     while moves_left != 0 {
-        let new_moves: Vec<Point> = to_visit.iter().flat_map(next_moves).collect();
+        let new_moves: Vec<(u8, Point)> = to_visit
+            .iter()
+            .flat_map(|(move_n, pos)| {
+                next_moves(pos)
+                    .iter()
+                    .map(|m| (move_n + 1, *m))
+                    .collect::<Vec<(u8, Point)>>()
+            })
+            .collect();
         positions.extend(&new_moves);
         to_visit = new_moves;
 
@@ -96,6 +111,7 @@ impl From<char> for Element {
             'D' => Self::Dragon,
             'S' => Self::Sheep,
             '.' => Self::Empty,
+            '#' => Self::Safe,
             _ => unreachable!(),
         }
     }
