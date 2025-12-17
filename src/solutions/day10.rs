@@ -1,16 +1,7 @@
 use crate::solutions::solution;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub struct Day10Solver;
-
-type Point = (usize, usize);
-
-struct Grid {
-    sheep: Vec<u128>,
-    safe: Vec<u128>,
-    dragon: Point,
-    limits: Point,
-}
 
 impl solution::Solver for Day10Solver {
     fn solve(&self, input: solution::Input) -> solution::Solution {
@@ -20,6 +11,21 @@ impl solution::Solver for Day10Solver {
             part3: "".into(),
         }
     }
+}
+
+type Point = (usize, usize);
+
+enum Element {
+    Dragon,
+    Sheep,
+    Empty,
+    Safe,
+}
+
+struct Grid {
+    grid: HashMap<Point, Element>,
+    limits: Point,
+    dragon: Point,
 }
 
 fn part2(input: &str) -> u64 {
@@ -33,17 +39,17 @@ fn part2(input: &str) -> u64 {
     while move_n != (moves + 1) {
         let mut new_moves = HashSet::new();
         for pos in to_visit.iter() {
-            if grid.has_safe_space(pos) || move_n as usize > pos.0 {
-                continue;
+            if !(grid.has_safe_space(pos)) {
+                sheep_pos.extend(
+                    [
+                        (pos.0.wrapping_sub(move_n as usize), pos.1),
+                        ((pos.0 + 1).wrapping_sub(move_n as usize), pos.1),
+                    ]
+                    .iter()
+                    .filter(|pos| grid.has_sheep(pos)),
+                );
             }
-            sheep_pos.extend(
-                [
-                    (pos.0 - move_n as usize + 1, pos.1),
-                    (pos.0 - move_n as usize, pos.1),
-                ]
-                .iter()
-                .filter(|pos| grid.has_sheep(pos)),
-            );
+
             new_moves.extend(grid.next_moves(pos));
         }
 
@@ -89,12 +95,12 @@ fn moves(part: u8) -> u8 {
 }
 
 impl Grid {
-    pub fn has_sheep(&self, (x, y): &Point) -> bool {
-        (self.sheep[*x] & (1 << y)) != 0
+    pub fn has_sheep(&self, pos: &Point) -> bool {
+        matches!(self.grid.get(pos), Some(Element::Sheep))
     }
 
-    pub fn has_safe_space(&self, (x, y): &Point) -> bool {
-        (self.safe[*x] & (1 << y)) != 0
+    pub fn has_safe_space(&self, pos: &Point) -> bool {
+        matches!(self.grid.get(pos), Some(Element::Safe))
     }
 
     pub fn can_eat_sheep(&self, pos: &Point) -> bool {
@@ -126,31 +132,30 @@ impl Grid {
 
 impl From<&str> for Grid {
     fn from(value: &str) -> Self {
-        let mut dragon = (0, 0);
-        let mut limits = (0, 0);
-        let mut safe = vec![];
-        let mut sheep = vec![];
-        for (row, line) in value.lines().enumerate() {
-            let mut sheep_row = 0;
-            let mut safe_row = 0;
-            for (col, c) in line.char_indices() {
-                match c {
-                    'D' => dragon = (row, col),
-                    '#' => safe_row |= 1 << col,
-                    'S' => sheep_row |= 1 << col,
-                    '.' => (),
+        let grid: HashMap<Point, Element> = value
+            .lines()
+            .enumerate()
+            .flat_map(|(row, line)| {
+                line.char_indices().map(move |(col, c)| match c {
+                    'D' => ((row, col), Element::Dragon),
+                    'S' => ((row, col), Element::Sheep),
+                    '#' => ((row, col), Element::Safe),
+                    '.' => ((row, col), Element::Empty),
                     _ => unreachable!(),
-                }
-                limits = (row, col);
-            }
-            sheep.push(sheep_row);
-            safe.push(safe_row);
-        }
+                })
+            })
+            .collect();
+
+        let (dragon_pos, _) = grid
+            .iter()
+            .find(|(_p, d)| matches!(d, Element::Dragon))
+            .unwrap();
+        let dragon = *dragon_pos;
+        let limits = *grid.keys().max().unwrap();
 
         Self {
+            grid,
             dragon,
-            safe,
-            sheep,
             limits,
         }
     }
