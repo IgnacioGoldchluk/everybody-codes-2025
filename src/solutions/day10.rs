@@ -1,118 +1,157 @@
 use crate::solutions::solution;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 pub struct Day10Solver;
 
-enum Element {
-    Dragon,
-    Sheep,
-    Empty,
-    Safe,
+type Point = (usize, usize);
+
+struct Grid {
+    sheep: Vec<u128>,
+    safe: Vec<u128>,
+    dragon: Point,
+    limits: Point,
 }
-
-type Point = (i32, i32);
-
-type Grid = HashMap<Point, Element>;
 
 impl solution::Solver for Day10Solver {
     fn solve(&self, input: solution::Input) -> solution::Solution {
         solution::Solution {
             part1: part1(&input.part1).to_string(),
-            part2: "".into(),
+            part2: part2(&input.part2).to_string(),
             part3: "".into(),
         }
     }
 }
 
-fn part1(input: &str) -> u64 {
-    let grid = parse(input);
+fn part2(input: &str) -> u64 {
+    let grid = Grid::from(input);
 
-    let unique_positions: HashSet<Point> = valid_positions(&find_dragon(&grid), moves())
-        .iter()
-        .map(|(_move_num, pos)| *pos)
-        .collect();
+    let moves = moves(2);
+    let mut move_n = 0;
+    let mut to_visit = HashSet::from([grid.dragon]);
+    let mut sheep_pos: HashSet<Point> = HashSet::new();
 
-    unique_positions
-        .iter()
-        .filter(|pos| matches!(grid.get(pos), Some(Element::Sheep)))
-        .count() as u64
-}
+    while move_n != (moves + 1) {
+        let mut new_moves = HashSet::new();
+        for pos in to_visit.iter() {
+            if grid.has_safe_space(pos) || move_n as usize > pos.0 {
+                continue;
+            }
+            sheep_pos.extend(
+                [
+                    (pos.0 - move_n as usize + 1, pos.1),
+                    (pos.0 - move_n as usize, pos.1),
+                ]
+                .iter()
+                .filter(|pos| grid.has_sheep(pos)),
+            );
+            new_moves.extend(grid.next_moves(pos));
+        }
 
-fn valid_positions(start: &Point, total_moves: u8) -> HashSet<(u8, Point)> {
-    let mut moves_left = total_moves;
-    let mut to_visit = vec![(0, *start)];
-    let mut positions = HashSet::new();
-
-    while moves_left != 0 {
-        let new_moves: Vec<(u8, Point)> = to_visit
-            .iter()
-            .flat_map(|(move_n, pos)| {
-                next_moves(pos)
-                    .iter()
-                    .map(|m| (move_n + 1, *m))
-                    .collect::<Vec<(u8, Point)>>()
-            })
-            .collect();
-        positions.extend(&new_moves);
         to_visit = new_moves;
-
-        moves_left -= 1;
+        move_n += 1;
     }
 
-    positions
+    sheep_pos.len() as u64
 }
 
-fn find_dragon(grid: &Grid) -> Point {
-    grid.iter()
-        .find_map(|(coord, el)| match el {
-            Element::Dragon => Some(*coord),
-            _ => None,
-        })
-        .unwrap()
+fn part1(input: &str) -> u64 {
+    let grid = Grid::from(input);
+
+    let moves = moves(1);
+    let mut move_n = 0;
+    let mut to_visit = vec![grid.dragon];
+    let mut sheep_pos: HashSet<Point> = HashSet::new();
+
+    while move_n != (moves + 1) {
+        let mut new_moves = vec![];
+        for pos in to_visit.iter() {
+            if grid.can_eat_sheep(pos) {
+                sheep_pos.insert(*pos);
+            }
+            new_moves.extend(grid.next_moves(pos));
+        }
+
+        to_visit = new_moves;
+        move_n += 1;
+    }
+
+    sheep_pos.len() as u64
 }
 
-fn next_moves(pos: &Point) -> Vec<Point> {
-    let (curr_x, curr_y) = pos;
-    let mov = [
-        (-1, -2),
-        (-1, 2),
-        (1, -2),
-        (1, 2),
-        (2, -1),
-        (2, 1),
-        (-2, 1),
-        (-2, -1),
-    ];
-
-    mov.iter()
-        .map(|(x, y)| (curr_x + x, curr_y + y))
-        .filter(|(x, y)| *x >= 0 && *y >= 0)
-        .collect()
+fn moves(part: u8) -> u8 {
+    match (part, cfg!(test)) {
+        (1, true) => 3,
+        (1, false) => 4,
+        (2, true) => 3,
+        (2, false) => 20,
+        _ => unreachable!(),
+    }
 }
 
-fn parse(input: &str) -> Grid {
-    input
-        .lines()
-        .enumerate()
-        .flat_map(|(row, line)| {
-            line.char_indices()
-                .map(move |(col, c)| ((row as i32, col as i32), Element::from(c)))
-        })
-        .collect()
+impl Grid {
+    pub fn has_sheep(&self, (x, y): &Point) -> bool {
+        (self.sheep[*x] & (1 << y)) != 0
+    }
+
+    pub fn has_safe_space(&self, (x, y): &Point) -> bool {
+        (self.safe[*x] & (1 << y)) != 0
+    }
+
+    pub fn can_eat_sheep(&self, pos: &Point) -> bool {
+        self.has_sheep(pos) && !self.has_safe_space(pos)
+    }
+
+    pub fn next_moves(&self, dragon_posiiton: &Point) -> Vec<Point> {
+        let x = dragon_posiiton.0 as i32;
+        let y = dragon_posiiton.1 as i32;
+        let (max_x, max_y) = self.limits;
+        let mov = [
+            (-1, -2),
+            (-1, 2),
+            (1, -2),
+            (1, 2),
+            (2, -1),
+            (2, 1),
+            (-2, 1),
+            (-2, -1),
+        ];
+
+        mov.iter()
+            .filter(|(dx, dy)| x + dx >= 0 && y + dy >= 0)
+            .map(|(dx, dy)| ((x + *dx) as usize, (y + *dy) as usize))
+            .filter(|(new_x, new_y)| *new_x <= max_x && *new_y <= max_y)
+            .collect()
+    }
 }
 
-fn moves() -> u8 {
-    if cfg!(test) { 3 } else { 4 }
-}
+impl From<&str> for Grid {
+    fn from(value: &str) -> Self {
+        let mut dragon = (0, 0);
+        let mut limits = (0, 0);
+        let mut safe = vec![];
+        let mut sheep = vec![];
+        for (row, line) in value.lines().enumerate() {
+            let mut sheep_row = 0;
+            let mut safe_row = 0;
+            for (col, c) in line.char_indices() {
+                match c {
+                    'D' => dragon = (row, col),
+                    '#' => safe_row |= 1 << col,
+                    'S' => sheep_row |= 1 << col,
+                    '.' => (),
+                    _ => unreachable!(),
+                }
+                limits = (row, col);
+            }
+            sheep.push(sheep_row);
+            safe.push(safe_row);
+        }
 
-impl From<char> for Element {
-    fn from(value: char) -> Self {
-        match value {
-            'D' => Self::Dragon,
-            'S' => Self::Sheep,
-            '.' => Self::Empty,
-            '#' => Self::Safe,
-            _ => unreachable!(),
+        Self {
+            dragon,
+            safe,
+            sheep,
+            limits,
         }
     }
 }
@@ -139,13 +178,28 @@ S.S..S..S....
 .......S....S
 SS.....S..S.."#;
 
+        let input_2 = r####"...SSS##.....
+.S#.##..S#SS.
+..S.##.S#..S.
+.#..#S##..SS.
+..SSSS.#.S.#.
+.##..SS.#S.#S
+SS##.#D.S.#..
+S.S..S..S###.
+.##.S#.#....S
+.SSS.#SS..##.
+..#.##...S##.
+.#...#.S#...S
+SS...#.S.#S.."####;
+
         let input = solution::Input {
             part1: input_1.into(),
-            part2: "".into(),
+            part2: input_2.into(),
             part3: "".into(),
         };
 
         let solution = Day10Solver.solve(input);
         assert_eq!(solution.part1, "27");
+        assert_eq!(solution.part2, "27");
     }
 }
